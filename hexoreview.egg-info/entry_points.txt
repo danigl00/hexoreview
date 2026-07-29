@@ -1,0 +1,2 @@
+[console_scripts]
+hexoreview = hexoreview.cli:main

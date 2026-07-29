@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: hexoreview
+Version: 1.0.0
+Summary: Blinded clinician review of overnight Hexoskin recordings for seizure marking
+Requires-Python: >=3.10
+Requires-Dist: mne>=1.6
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Requires-Dist: panel>=1.4
+Requires-Dist: bokeh>=3.4
+Requires-Dist: tzdata>=2024.1; sys_platform == "win32"
+Requires-Dist: edfio>=0.4.14
