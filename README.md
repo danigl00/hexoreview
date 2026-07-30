@@ -1,13 +1,11 @@
 # hexoreview
 
-A blinded review dashboard for overnight Hexoskin recordings. Clinicians page
+A blinded review dashboard for Hexoskin recordings. Reviwers page
 through each recording, mark seizures by dragging on the trace, and the tool
-exports analysis-ready CSVs — including the nights reviewed with nothing found,
-which is the denominator needed for sensitivity and false-alarm rates.
+exports analysis-ready CSVs.
 
-Reviewers only ever see neutral labels (`night_001`, …) and elapsed time — never
-the patient identity or the recording date. Identity lives in a private map that
-stays off reviewer machines.
+Reviewers only ever see neutral labels (`night_001`, …) and elapsed time; they are blinded to
+the patient identity or the recording date. Identity lives in a private map.
 
 ---
 
@@ -26,12 +24,12 @@ desktop), reviewing takes six steps:
 4. **Mark seizures.** Drag left-to-right anywhere on a trace to mark a seizure.
    Fine-tune the exact boundaries with the onset/offset boxes, or use **Mark
    whole page as seizure**.
-5. **Finish the night.** Click **Finish this night** when done — this records
+5. **Finish the night.** Click **Finish this night** when done! This records
    the review even if you found nothing.
 6. **Save and exit** when you're finished for the session. You can then close the
    window.
 
-Your worklist shows only your own recordings and marks. Take your time — the
+Your worklist shows only your own recordings and marks. Take your time, the
 timer only counts while you're actually working, and pauses when the window sits
 idle.
 
@@ -73,7 +71,7 @@ Reviewers never need a terminal.
 ### 1. Register reviewers
 
 ```powershell
-uv run hexoreview reviewer add --id jsmith --name "J. Smith" --passcode 1234
+uv run hexoreview reviewer add --id rev_01 --name "J. Smith" --passcode 1234
 uv run hexoreview reviewer add --id coord  --name "Coordinator" --coordinator
 uv run hexoreview reviewer list
 ```
@@ -85,7 +83,9 @@ holds the private map.
 ### 2. Blind the recordings
 
 ```powershell
-uv run hexoreview scan D:\Hexoskin_recordings\
+uv run hexoreview scan path/to/Hexoskin_recordings/
+    --samples-dir path/to/sample_recordings/
+    --samples-csv  path/to/samples_edf.csv
 ```
 
 Every EDF under the source folder is given a neutral `night_NNN` label, linked
@@ -95,40 +95,41 @@ Rerun any time you add recordings — existing labels are left untouched.
 Use `--copy` if symlinks are blocked on your machines, and `--seed` to control
 the label shuffle.
 
-### 3. Build the training samples (optional)
+Building the training samples is **optional**. Point `--samples-dir` at a folder
+of full recordings and pass a seizure CSV with `--samples-csv`. The CSV lists the
+seizures to mark, one per row, with at least an onset and offset timestamp in
+Eastern time:
 
-```powershell
-uv run hexoreview scan D:\Hexoskin_recordings\ ^
-    --samples-dir D:\training_samples\ ^
-    --samples-csv finder\samples_edf.csv
-```
+- `electric_onset` — seizure onset (required)
+- `sz_offset` — seizure end (optional; defaults to the onset)
+- `sz_date` — only needed if the onset/offset are a time of day without a date
+- `sz_type` — a label shown in the marks table (optional)
 
-Full recordings in `--samples-dir` that contain seizures are added to the
-training set with their seizures pre-marked. Keep `--samples-dir` **outside** the
-scan source so these example recordings never enter the scored worklist. See
-**Training samples** below.
+Timestamps may be full (`2026-01-05 03:12:00`) or a bare time paired with
+`sz_date`. Each recording in `--samples-dir` whose interval contains a seizure
+onset is added to the training set with those seizures pre-marked. Keep
+`--samples-dir` **outside** the scan source so these example recordings never
+enter the scored worklist. See **Training samples** below.
 
-### 4. Pre-convert recordings (optional but recommended)
+### 3. Pre-convert recordings (optional but recommended)
 
 ```powershell
 uv run hexoreview precache
 ```
 
 The first time a recording opens it is converted to a fast memory-mapped cache,
-which takes a while for an 8-hour night. Precaching does this ahead of time so
+which takes a while for hours-long recordings. Precaching does this ahead of time so
 reviewers never wait.
 
-### 5. Deploy to reviewer machines
+### 4. Deploy to reviewer machines
 
-Copy the project folder to each reviewer's machine, **excluding the private
-material**: leave out `private/blinding_map.csv` and
-`D:\training_samples\samples_private_map.csv`. Reviewers need `blinded/`,
-`review/`, and (if built) `review/samples/`; they must not receive anything that
-maps a label back to a patient.
+Copy the project folder to each reviewer's machine, **excluding the private material**: 
+leave out `./private/blinding_map.csv` and `path/to/sample_recordings/samples_private_map.csv`. Reviewers need `./blinded/`,
+`./review/`, and (if built) `./review/samples/`; they must not receive anything that maps a label back to a patient.
 
 Then run `create_shortcut.ps1` on each machine (see Installation).
 
-### 6. Collect results
+### 5. Collect results
 
 The analysis CSVs are rebuilt automatically whenever a reviewer finishes a night
 or exits. To regenerate them on demand, or from the coordinator machine:
@@ -143,43 +144,12 @@ progress (nights finished, marks, minutes spent).
 
 ---
 
-## Training samples
-
-Example recordings with known seizures, shown under a **Training samples** menu so
-reviewers can learn to recognise events. They are **never scored** and never enter
-the worklist — loading one disables marking, the finish button, and the timer.
-
-A sample is a full recording opened with its seizures already highlighted. The
-reviewer lands on the first one; selecting any seizure in the table and clicking
-**Go to mark** jumps straight to it.
-
-**Seizure CSV columns** (the names can be changed at the top of
-`hexoreview/samples.py`):
-
-- `electric_onset` — seizure onset, Eastern time
-- `sz_offset` — seizure end, Eastern time (optional; defaults to the onset)
-- `sz_date` — supplies the date if the onset/offset are time-of-day only
-- `sz_type` — shown in the marks table (not identifying)
-
-Timestamps may be full (`2026-01-05 03:12:00`) or a bare time paired with
-`sz_date`. A seizure is matched to a recording when its onset falls inside that
-recording's time interval.
-
-**Outputs:**
-
-- `review/samples/samples_manifest.csv` — neutral labels and mark positions; safe
-  for reviewer machines.
-- `<samples-dir>/samples_private_map.csv` — label → real filename and patient id;
-  stays beside the samples source on the coordinator drive. Keep it off reviewer
-  machines, like the blinding map.
-
----
 
 ## Using the viewer
 
 - **Marking** — drag left-to-right on any trace to mark a seizure. Select a row
-  and use the onset/offset boxes to adjust it exactly, or **Mark whole page as
-  seizure**. Select a mark and **Delete mark** to remove it.
+  and use the onset/offset boxes to adjust it exactly, or **Mark whole page as seizure**. 
+  Select a mark and **Delete mark** to remove it.
 - **Navigation** — `←` `→` page forward/back, `Shift+←` `Shift+→` nudge; the
   position slider and the whole-night strip jump anywhere. **Go to mark** jumps
   to the selected mark.
@@ -187,9 +157,8 @@ recording's time interval.
 - **Scale** — scroll inside a channel to zoom it vertically; `▲` `▼` move it up
   and down; `+` `−` zoom in steps. The figure under each channel name is the
   half-height of that lane. **Reset scale** returns to defaults.
-- **Auto-centre** keeps each trace centred as the baseline drifts. **Fit to
-  window** shares the height evenly across the six lanes; turn it off to set a
-  fixed lane height (or drag a lane's bottom edge).
+- **Auto-centre** keeps each trace centred as the baseline drifts. **Fit to  window** shares the height evenly across the six lanes; 
+  turn it off to set a fixed lane height (or drag a lane's bottom edge).
 - **Finish this night** records the review, including "no seizures found."
   **Reopen for editing** reverts a finished night. **Save and exit** saves,
   refreshes the export, and shuts the server down.
@@ -200,7 +169,7 @@ recording's time interval.
 
 - Reviewers see only `night_NNN` labels and elapsed time; the real filename,
   patient identity, and recording date never appear in the interface.
-- Patient identity is written only to `private/blinding_map.csv`, which stays on
+- Patient identity is written only to `./private/blinding_map.csv`, which stays on
   the coordinator machine. Without it, exports still run — the patient and record
   columns simply read `UNMAPPED`.
 - Labels are shuffled with a recorded seed, and nothing tells a reviewer how many
