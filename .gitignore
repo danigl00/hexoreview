@@ -1,8 +1,9 @@
 *cache__/
 .venv/
 blinded/
-finder/
+data/
 private/
 review/
-samples/
 export/
+results/*
+!results/evaluate_reviewers.py 
