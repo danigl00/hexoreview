@@ -44,15 +44,14 @@ and keyboard shortcuts.
 
 ## Installation
 
-Requires [uv](https://docs.astral.sh/uv/) and Python ≥ 3.10. From the project
-folder:
-
-```powershell
+```bash
+git clone https://github.com/danigl00/hexoreview.git
+cd hexoview
 uv sync
 ```
 
-On Windows, make sure `tzdata` is installed (uv handles this from the project's
-dependencies) so the Eastern timezone resolves correctly.
+Python ≥ 3.10. On Windows the `tzdata` dependency matters: without it
+`zoneinfo` has no timezone database and every time falls back to UTC.
 
 To give a reviewer a desktop shortcut, run once on their machine from the project
 root:
